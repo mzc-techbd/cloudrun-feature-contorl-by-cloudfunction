@@ -96,9 +96,11 @@ Cloud Functions(2세대)에서 Pub/Sub 트리거 및 Cloud Storage 트리거는 
 ### gcloud-cli command
 
 ```bash
+PROJECT_ID=$(gcloud config get-value project)
 CLOUDFUNCTION_REGION=asia-northeast3
 TRIGGER_LOCATION=global
 gcloud functions deploy go-cloudrun-create-event-trigger-func \
+--project=$PROJECT_ID
 --gen2 \
 --runtime=go120 \
 --region=$CLOUDFUNCTION_REGION \
@@ -152,7 +154,7 @@ gcloud functions deploy go-cloudrun-create-event-trigger-func \
 ```bash
 gcloud run services delete hello --project=$PROJECT_ID --region=$CLOUDRUN_REGION -q
 
-gcloud functions delete go-cloudrun-create-event-trigger-func --region=$REGION -q
+gcloud functions delete go-cloudrun-create-event-trigger-func --project=$PROJECT_ID --region=$REGION -q
 
 gcloud storage rm --recursive gs://gcf-v2-sources-$PROJECT_NUMBER-$CLOUDFUNCTION_REGION/
 
