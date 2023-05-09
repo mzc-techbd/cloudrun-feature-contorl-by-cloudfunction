@@ -1,0 +1,354 @@
+// package function
+
+// import (
+// 	"context"
+// 	"fmt"
+// 	"log"
+// 	"net/http"
+// 	"os"
+// 	"time"
+
+// 	"cloud.google.com/go/compute/metadata"
+// 	run "cloud.google.com/go/run/apiv2"
+// 	"cloud.google.com/go/run/apiv2/runpb"
+// 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+// 	"github.com/cloudevents/sdk-go/v2/event"
+
+// 	"github.com/slack-go/slack"
+// )
+
+// // // AuditLogEntry represents a LogEntry as described at
+// // // https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
+// // type AuditLogEntry struct {
+// // 	ProtoPayload *AuditLogProtoPayload `json:"protoPayload"`
+// // }
+
+// // // AuditLogProtoPayload represents AuditLog within the LogEntry.protoPayload
+// // // See https://cloud.google.com/logging/docs/reference/audit/auditlog/rest/Shared.Types/AuditLog
+// // type AuditLogProtoPayload struct {
+// // 	MethodName         string                 `json:"methodName"`
+// // 	ResourceName       string                 `json:"resourceName"`
+// // 	AuthenticationInfo map[string]interface{} `json:"authenticationInfo"`
+// // }
+
+// type AuditLogEntry struct {
+// 	ProtoPayload struct {
+// 		MethodName         string `json:"methodName"`
+// 		ResourceName       string `json:"resourceName"`
+// 		ServiceName        string `json:"serviceName"`
+// 		AuthenticationInfo struct {
+// 			PrincipalEmail string `json:"principalEmail"`
+// 		} `json:"authenticationInfo"`
+// 		Request struct {
+// 			Service struct {
+// 				APIVersion string `json:"apiVersion"`
+// 				Kind       string `json:"kind"`
+// 				Metadata   struct {
+// 					Name        string            `json:"name"`
+// 					Namespace   string            `json:"namespace"`
+// 					Annotations map[string]string `json:"annotations"`
+// 					// Annotations struct {
+// 					// 	RunGoogleapisComClientName string `json:"run.googleapis.com/client-name,omitempty"`
+// 					// 	RunGoogleapisComLaunchStage   string `json:"run.googleapis.com/launch-stage,omitempty"`
+// 					// 	RunGoogleapisComCPUThrottling string `json:"run.googleapis.com/cpu-throttling,omitempty"`
+// 					// } `json:"annotations"`
+// 				} `json:"metadata"`
+// 				Spec struct {
+// 					Template struct {
+// 						Metadata struct {
+// 							Name        string            `json:"name"`
+// 							Annotations map[string]string `json:"annotations"`
+// 							// Annotations struct {
+// 							// 	// AutoscalingKnativeDevMaxScale string `json:"autoscaling.knative.dev/maxScale,omitempty"`
+// 							// 	RunGoogleapisComCPUThrottling string `json:"run.googleapis.com/cpu-throttling,omitempty"`
+// 							// 	RunGoogleapisComClientName    string `json:"run.googleapis.com/client-name,omitempty"`
+// 							// } `json:"annotations"`
+// 						} `json:"metadata"`
+// 						Spec struct {
+// 							ContainerConcurrency int    `json:"containerConcurrency"`
+// 							TimeoutSeconds       int    `json:"timeoutSeconds"`
+// 							ServiceAccountName   string `json:"serviceAccountName"`
+// 						} `json:"spec"`
+// 					} `json:"template"`
+// 				} `json:"spec"`
+// 			} `json:"service"`
+// 			Region string `json:"region"`
+// 			Type   string `json:"@type"`
+// 			Parent string `json:"parent"`
+// 		} `json:"request"`
+// 		Response struct {
+// 			Metadata struct {
+// 				Name              string    `json:"name"`
+// 				Namespace         string    `json:"namespace"`
+// 				SelfLink          string    `json:"selfLink"`
+// 				UID               string    `json:"uid"`
+// 				ResourceVersion   string    `json:"resourceVersion"`
+// 				Generation        int       `json:"generation"`
+// 				CreationTimestamp time.Time `json:"creationTimestamp"`
+// 				Labels            struct {
+// 					CloudGoogleapisComLocation string `json:"cloud.googleapis.com/location"`
+// 				} `json:"labels"`
+// 				Annotations map[string]string `json:"annotations"`
+// 				// Annotations struct {
+// 				// 	RunGoogleapisComClientName string `json:"run.googleapis.com/client-name,omitempty"`
+// 				// 	ServingKnativeDevCreator   string `json:"serving.knative.dev/creator,omitempty"`
+// 				// 	// ServingKnativeDevLastModifier string `json:"serving.knative.dev/lastModifier,omitempty"`
+// 				// 	// RunGoogleapisComOperationID   string `json:"run.googleapis.com/operation-id,omitempty"`
+// 				// 	// RunGoogleapisComIngress       string `json:"run.googleapis.com/ingress,omitempty"`
+// 				// } `json:"annotations"`
+// 			} `json:"metadata"`
+// 			APIVersion string `json:"apiVersion"`
+// 			Type       string `json:"@type"`
+// 			Kind       string `json:"kind"`
+// 			Spec       struct {
+// 				Template struct {
+// 					Metadata struct {
+// 						Name string `json:"name"`
+// 						// Annotations struct {
+// 						// 	RunGoogleapisComClientName string `json:"run.googleapis.com/client-name,omitempty"`
+// 						// 	// AutoscalingKnativeDevMaxScale string `json:"autoscaling.knative.dev/maxScale,omitempty"`
+// 						// 	RunGoogleapisComCPUThrottling string `json:"run.googleapis.com/cpu-throttling,omitempty"`
+// 						// } `json:"annotations"`
+// 						Annotations map[string]string `json:"annotations"`
+// 					} `json:"metadata"`
+// 					Spec struct {
+// 						ContainerConcurrency int    `json:"containerConcurrency"`
+// 						TimeoutSeconds       int    `json:"timeoutSeconds"`
+// 						ServiceAccountName   string `json:"serviceAccountName"`
+// 					} `json:"spec"`
+// 				} `json:"template"`
+// 				Traffic []struct {
+// 					Percent        int  `json:"percent"`
+// 					LatestRevision bool `json:"latestRevision"`
+// 				} `json:"traffic"`
+// 			} `json:"spec"`
+// 			Status struct {
+// 			} `json:"status"`
+// 		} `json:"response"`
+// 		ResourceLocation struct {
+// 			CurrentLocations []string `json:"currentLocations,omitempty"`
+// 		} `json:"resourceLocation,omitempty"`
+// 	} `json:"protoPayload,omitempty"`
+// 	Resource struct {
+// 		Type   string `json:"type,omitempty"`
+// 		Labels struct {
+// 			ConfigurationName string `json:"configuration_name,omitempty"`
+// 			ProjectID         string `json:"project_id,omitempty"`
+// 			ServiceName       string `json:"service_name,omitempty"`
+// 			Location          string `json:"location,omitempty"`
+// 			RevisionName      string `json:"revision_name,omitempty"`
+// 		} `json:"labels,omitempty"`
+// 	} `json:"resource,omitempty"`
+// }
+
+// func sendToSlackChannel(payload *string) (err error) {
+// 	channelId := os.Getenv("SLACK_CHANNEL_ID")
+// 	if channelId == "" {
+// 		return fmt.Errorf("SLACK_CHANNEL_ID is null")
+// 	}
+// 	oauthToken := os.Getenv("SLACK_BOT_USER_OAUTH_TOKEN")
+// 	if oauthToken == "" {
+// 		return fmt.Errorf("SLACK_BOT_USER_OAUTH_TOKEN is null")
+// 	}
+// 	api := slack.New(oauthToken)
+// 	// https://api.slack.com/reference/surfaces/formatting#escaping
+// 	_, _, err = api.PostMessage(
+// 		channelId,
+// 		slack.MsgOptionText(*payload, false),
+// 	)
+// 	if err != nil {
+// 		return fmt.Errorf("%s %v", "slack.api.PostMessage", err)
+// 	}
+// 	return nil
+// }
+
+// // var (
+// // 	client *run.ServicesClient
+// // )
+
+// func init() {
+// 	functions.CloudEvent("CloudEventFunc", cloudEventFunc)
+// }
+
+// func cloudEventFunc(ctx context.Context, e event.Event) error {
+
+// 	os.Setenv("PROJECT_ID", "kktae-demo")
+
+// 	var err error
+// 	var projectId string
+
+// 	projectId = os.Getenv("PROJECT_ID")
+// 	if projectId == "" {
+// 		fmt.Printf("PROJECT_ID is empty\n")
+
+// 		c := metadata.NewClient(&http.Client{})
+// 		projectId, err = c.ProjectID()
+// 		if err != nil {
+// 			return fmt.Errorf("failed get metadata.ProjectID: %v", err)
+// 		}
+// 	}
+
+// 	fmt.Printf("PROJECT_ID: %s\n", projectId)
+
+// 	log.Printf("Event ID: %s", e.ID())
+// 	log.Printf("Event Type: %s", e.Type())
+
+// 	logentry := &AuditLogEntry{}
+// 	if err := e.DataAs(&logentry); err != nil {
+// 		return fmt.Errorf("event.DataAs: %v", err)
+// 	}
+
+// 	resource := &logentry.Resource
+// 	payload := &logentry.ProtoPayload
+
+// 	log.Print("PrincipalEmail: ", payload.AuthenticationInfo.PrincipalEmail)
+// 	log.Print("MethodName: ", payload.MethodName)
+// 	log.Print("ResourceName: ", payload.ResourceName)
+// 	log.Print("Request.Region: ", payload.Request.Region)
+// 	// log.Print("Response.Spec.Template.Metadata.Annotations.RunGoogleapisComCPUThrottling: ", payload.Response.Spec.Template.Metadata.Annotations.RunGoogleapisComCPUThrottling)
+
+// 	// if payload.Response.Spec.Template.Metadata.Annotations.RunGoogleapisComCPUThrottling == "false" {
+// 	// 	log.Print("Cpu Always on feature is ON !!!")
+// 	// }
+
+// 	c, err := run.NewServicesClient(context.Background())
+// 	if err != nil {
+// 		return fmt.Errorf("failed to create services client: %v", err)
+// 	}
+// 	defer c.Close()
+
+// 	// req := &runpb.CreateServiceRequest{
+// 	// 	Parent: "projects/kktae-demo/locations/us-central1",
+// 	// 	Service: &runpb.Service{
+// 	// 		// Name:                "",
+// 	// 		// Description:         "",
+// 	// 		// Labels:              map[string]string{},
+// 	// 		// Annotations:         map[string]string{},
+// 	// 		// Client:              "",
+// 	// 		// ClientVersion:       "",
+// 	// 		// Ingress:             0,
+// 	// 		// BinaryAuthorization: &runpb.BinaryAuthorization{},
+// 	// 		Template: &runpb.RevisionTemplate{
+// 	// 			// Revision:       "",
+// 	// 			// Labels:         map[string]string{},
+// 	// 			// Annotations:    map[string]string{},
+// 	// 			// Scaling:        &runpb.RevisionScaling{},
+// 	// 			// VpcAccess:      &runpb.VpcAccess{},
+// 	// 			// Timeout:        &durationpb.Duration{},
+// 	// 			// ServiceAccount: "",
+// 	// 			Containers: []*runpb.Container{
+// 	// 				{
+// 	// 					Image: "us-docker.pkg.dev/cloudrun/container/hello@sha256:dd7561287feafb59e8723d195a346275496ca70c8e0d0973bc082eb16e74cadf",
+// 	// 				},
+// 	// 			},
+// 	// 			// Volumes:                       []*runpb.Volume{},
+// 	// 			// ExecutionEnvironment:          0,
+// 	// 			// EncryptionKey:                 "",
+// 	// 			// MaxInstanceRequestConcurrency: 0,
+// 	// 		},
+// 	// 		// Traffic: []*runpb.TrafficTarget{},
+// 	// 	},
+// 	// 	ServiceId:    "hello-v2",
+// 	// 	ValidateOnly: false,
+// 	// }
+// 	// op, err := c.CreateService(ctx, req)
+// 	// if err != nil {
+// 	// 	// TODO: Handle error.
+// 	// 	return fmt.Errorf("failed to create services: %v", err)
+// 	// }
+
+// 	// s, err := op.Wait(ctx)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("failed to wait services: %v", err)
+// 	// }
+
+// 	project := resource.Labels.ProjectID
+// 	location := resource.Labels.Location
+// 	service := resource.Labels.ServiceName
+
+// 	log.Printf("project: %s | location: %s | service: %s\n", project, location, service)
+
+// 	s, err := c.GetService(ctx, &runpb.GetServiceRequest{
+// 		// Format: projects/{project}/locations/{location}/services/{service}, where
+// 		// {project} can be project id or number.
+// 		Name: fmt.Sprintf("projects/%s/locations/%s/services/%s", project, location, service),
+// 	})
+// 	if err != nil {
+// 		return fmt.Errorf("failed to get services: %v", err)
+// 	}
+
+// 	// latestCreatedRevision := s.GetLatestCreatedRevision()
+// 	// latestReadyRevision := s.GetLatestReadyRevision()
+
+// 	// b, err := json.MarshalIndent(s, "", "  ")
+// 	// fmt.Println(string(b))
+
+// 	// fmt.Println("before s.GetAnnotations()", s.GetAnnotations())
+// 	// fmt.Println("before s.Annotations", s.Annotations)
+// 	// delete(s.Annotations, "run.googleapis.com/cpu-throttling")
+// 	// fmt.Println("after s.GetAnnotations()", s.GetAnnotations())
+// 	// fmt.Println("after s.Annotations", s.Annotations)
+
+// 	// template := s.GetTemplate()
+// 	// fmt.Println("before template.GetAnnotations()", template.GetAnnotations())
+// 	// template.Revision = ""
+// 	// delete(template.Annotations, "run.googleapis.com/cpu-throttling")
+// 	// fmt.Println("after template.GetAnnotations()", template.GetAnnotations())
+
+// 	annotations := payload.Response.Spec.Template.Metadata.Annotations
+// 	// delete(annotations, "run.googleapis.com/cpu-throttling")
+
+// 	if _, exists := annotations["run.googleapis.com/cpu-throttling"]; exists {
+// 		annotations["run.googleapis.com/cpu-throttling"] = "true"
+// 		log.Printf("cpu-throttling set true\n")
+// 	} 
+
+// 	fmt.Printf("annotations: %v\n", annotations)
+
+// 	req := &runpb.UpdateServiceRequest{
+// 		Service: &runpb.Service{
+// 			Name:        s.GetName(),
+// 			Description: s.GetDescription(),
+// 			Labels:      s.GetLabels(),
+// 			// Annotations: annotations,
+// 			// Client:                s.GetClient(),
+// 			// ClientVersion:         s.ClientVersion(),
+// 			Ingress:             s.GetIngress(),
+// 			LaunchStage:         s.GetLaunchStage(),
+// 			BinaryAuthorization: s.GetBinaryAuthorization(),
+// 			// Template:            s.GetTemplate(),
+// 			Template: &runpb.RevisionTemplate{
+// 				Revision: "",
+// 				// Labels:                        map[string]string{},
+// 				Annotations: annotations,
+// 				// Scaling:                       &runpb.RevisionScaling{},
+// 				// VpcAccess:                     &runpb.VpcAccess{},
+// 				// Timeout:                       &durationpb.Duration{},
+// 				// ServiceAccount:                service,
+// 				Containers: s.GetTemplate().GetContainers(),
+// 				// Volumes:                       []*runpb.Volume{},
+// 				// ExecutionEnvironment:          0,
+// 				// EncryptionKey:                 "",
+// 				// MaxInstanceRequestConcurrency: 0,
+// 			},
+// 			Traffic: s.GetTraffic(),
+// 		},
+// 		ValidateOnly: false,
+// 		AllowMissing: false,
+// 	}
+
+// 	op, err := c.UpdateService(ctx, req)
+// 	if err != nil {
+// 		// TODO: Handle error.
+// 		return fmt.Errorf("failed to update services: %v", err)
+// 	}
+
+// 	s, err = op.Wait(ctx)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to wait services: %v", err)
+// 	}
+
+// 	fmt.Println(s)
+
+// 	return nil
+// }
